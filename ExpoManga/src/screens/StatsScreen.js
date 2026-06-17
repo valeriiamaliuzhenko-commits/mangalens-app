@@ -118,7 +118,6 @@ function BarChart({ data, color }) {
                 width: '100%', borderRadius: 3, minHeight: 2, height: h,
                 backgroundColor: color,
                 opacity: d.pages === 0 ? 0.15 : (isLast ? 1 : 0.55),
-                transform: isLast ? [] : [{ rotate: '-1deg' }],
               }} />
               <Text style={{ fontSize: 8, color: Colors.textMuted, marginTop: 2, opacity: showLabelAt.has(i) ? 1 : 0 }}>
                 {d.date.slice(5)}

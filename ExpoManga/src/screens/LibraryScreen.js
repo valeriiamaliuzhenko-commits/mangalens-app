@@ -10,14 +10,11 @@ import { Badge } from "../components";
 import {
   getMangaList, uploadManga, deleteManga, getStats,
   getSeriesList, createSeries, deleteSeries, updateManga, rateManga, rateSeries,
+  logout, deleteAccount,
+  setMangaCoverFromPage, setMangaCoverFromImage, revertMangaCover,
 } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
-import { logout, deleteAccount } from "../services/api";
 import CoverOptionsModal from "../components/CoverOptionsModal";
-import {
-  setMangaCoverFromPage, setMangaCoverFromImage, revertMangaCover,
-  setSeriesCoverFromImage, revertSeriesCover,
-} from "../services/api";
 
 const STATUS_META = {
   planned:     { label: 'Planned',     color: Colors.textMuted },
@@ -35,9 +32,6 @@ const SORT_OPTIONS = [
   { key: 'name', label: 'Name A–Z' },
   { key: 'rating', label: 'Rating' },
 ];
-const [coverModal, setCoverModal] = useState(null);
-// shape: { type: 'manga'|'series', id, title, totalPages, hasCustomCover }
-
 
 function StarDisplay({ rating, onPress, size = 14 }) {
   return (
@@ -201,6 +195,8 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
   const [statusModal, setStatusModal] = useState(null);
   const [renameModal, setRenameModal] = useState(null);
   const [ratingModal, setRatingModal] = useState(null);
+  const [coverModal, setCoverModal] = useState(null);
+  // shape: { type: 'manga', id, title, totalPages, hasCustomCover }
   const [standalones, setStandalones] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [stats, setStats] = useState(null);
@@ -240,7 +236,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
       if (result.canceled || !result.assets?.length) return;
       const file = result.assets[0];
       setUploading(true);
-      const data = await uploadManga(file.uri, file.name, file.mimeType);
+      await uploadManga(file.uri, file.name, file.mimeType);
       setUploading(false);
       loadAll();
     } catch (err) {
@@ -305,7 +301,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
       }},
     ]);
   };
- 
+
   const handleDeleteAccount = async () => {
     if (!deletePassword) {
       setDeleteError('Please enter your password.');
@@ -323,29 +319,23 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     }
   };
 
+  // Library screen only edits standalone manga covers — series covers
+  // are edited from inside the Series screen itself.
   const handleUsePageAsCover = async (pageIndex) => {
     if (!coverModal) return;
     await setMangaCoverFromPage(coverModal.id, pageIndex);
     loadAll();
   };
- 
+
   const handleUploadCoverImage = async (base64) => {
     if (!coverModal) return;
-    if (coverModal.type === 'series') {
-      await setSeriesCoverFromImage(coverModal.id, base64);
-    } else {
-      await setMangaCoverFromImage(coverModal.id, base64);
-    }
+    await setMangaCoverFromImage(coverModal.id, base64);
     loadAll();
   };
- 
+
   const handleRevertCover = async () => {
     if (!coverModal) return;
-    if (coverModal.type === 'series') {
-      await revertSeriesCover(coverModal.id);
-    } else {
-      await revertMangaCover(coverModal.id);
-    }
+    await revertMangaCover(coverModal.id);
     loadAll();
   };
 
@@ -375,17 +365,14 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     const progress = item.total_pages > 0 ? Math.round((item.total_read / item.total_pages) * 100) : 0;
     return (
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Series", { series: item })} activeOpacity={0.8}>
-        <TouchableOpacity
-          style={styles.cardCover}
-          onLongPress={() => setCoverModal({ type: 'series', id: item.id, title: item.title, totalPages: 0, hasCustomCover: !!item.custom_cover })}
-          delayLongPress={400}
-          activeOpacity={0.7}
-        >
+        {/* Series cover is decorative-only on the Library screen — editing
+            happens inside the Series screen, so no tap handler here. */}
+        <View style={styles.cardCover}>
           {item.cover ? (
             <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" />
           ) : <Text style={styles.cardIconText}>📚</Text>}
           <View style={styles.chapterBadge}><Text style={styles.chapterBadgeText}>{item.total_chapters}</Text></View>
-        </TouchableOpacity>
+        </View>
         <View style={styles.cardBody}>
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
@@ -409,18 +396,24 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     const progress = item.total_pages > 0 ? Math.round(((item.last_page + 1) / item.total_pages) * 100) : 0;
     const meta = STATUS_META[item.status] || STATUS_META.planned;
     return (
-      <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Viewer", { manga_id: item.id, totalPages: item.total_pages, title: item.title, last_page: item.last_page })} activeOpacity={0.8}>
+      <View style={styles.card}>
+        {/* Cover is its own tap target: opens the cover editor and does NOT
+            trigger the card's navigate-to-Viewer behavior. */}
         <TouchableOpacity
           style={styles.cardCover}
-          onLongPress={() => setCoverModal({ type: 'manga', id: item.id, title: item.title, totalPages: item.total_pages, hasCustomCover: !!item.custom_cover })}
-          delayLongPress={400}
+          onPress={() => setCoverModal({ type: 'manga', id: item.id, title: item.title, totalPages: item.total_pages, hasCustomCover: !!item.custom_cover })}
           activeOpacity={0.7}
         >
           {item.cover ? (
             <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" />
           ) : <Text style={styles.cardIconText}>漫</Text>}
         </TouchableOpacity>
-        <View style={styles.cardBody}>
+
+        <TouchableOpacity
+          style={styles.cardBody}
+          onPress={() => navigation.navigate("Viewer", { manga_id: item.id, totalPages: item.total_pages, title: item.title, last_page: item.last_page })}
+          activeOpacity={0.8}
+        >
           <View style={styles.cardTitleRow}>
             <TouchableOpacity onPress={() => setRenameModal(item)} style={{ flex: 1 }}>
               <Text style={styles.cardTitle} numberOfLines={1}>{item.title} <Text style={styles.renameHint}>✎</Text></Text>
@@ -435,11 +428,12 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
             <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress}%` }]} /></View>
             <Text style={styles.progressText}>{item.last_page + 1}/{item.total_pages}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={() => handleDeleteStandalone(item)} style={styles.deleteBtn}>
           <Text style={styles.deleteIcon}>✕</Text>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -554,7 +548,8 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
       <StatusModal statusModal={statusModal} onClose={() => setStatusModal(null)} onUpdate={handleStatusUpdate} />
       <RenameModal item={renameModal} onClose={() => setRenameModal(null)} onSave={handleRename} />
       <StarPickerModal visible={!!ratingModal} title={ratingModal?.title || ''} currentRating={ratingModal?.rating} onClose={() => setRatingModal(null)} onRate={handleRate} />
-        <Modal visible={showAccountModal} transparent animationType="fade" onRequestClose={() => setShowAccountModal(false)}>
+
+      <Modal visible={showAccountModal} transparent animationType="fade" onRequestClose={() => setShowAccountModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Account</Text>
@@ -573,7 +568,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
           </View>
         </View>
       </Modal>
- 
+
       <Modal visible={showDeleteConfirm} transparent animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -604,6 +599,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
           </View>
         </View>
       </Modal>
+
       <CoverOptionsModal
         visible={!!coverModal}
         onClose={() => setCoverModal(null)}
@@ -733,5 +729,4 @@ const styles = StyleSheet.create({
   },
   accountDangerBtn: { borderColor: Colors.error },
   accountActionText: { fontSize: Typography.base, fontWeight: Typography.semibold, color: Colors.textPrimary },
- 
 });
