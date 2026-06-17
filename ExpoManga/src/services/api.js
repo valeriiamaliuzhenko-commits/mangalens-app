@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://qbz1dtxk-8000.euw.devtunnels.ms/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mangalens-app-production.up.railway.app/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
@@ -290,3 +290,46 @@ export async function getRandomChapter(seriesId, currentMangaId) {
   if (!response.ok) return null;
   return response.json();
 }
+
+export async function setMangaCoverFromPage(mangaId, pageNumber) {
+  const response = await authedFetch(`${BASE_URL}/manga/${mangaId}/cover/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page_number: pageNumber }),
+  });
+  if (!response.ok) throw new Error('Failed to set cover');
+  return response.json();
+}
+ 
+export async function setMangaCoverFromImage(mangaId, base64Image) {
+  const response = await authedFetch(`${BASE_URL}/manga/${mangaId}/cover/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_data: base64Image }),
+  });
+  if (!response.ok) throw new Error('Failed to set cover');
+  return response.json();
+}
+ 
+export async function revertMangaCover(mangaId) {
+  const response = await authedFetch(`${BASE_URL}/manga/${mangaId}/cover/`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Failed to revert cover');
+  return response.json();
+}
+ 
+export async function setSeriesCoverFromImage(seriesId, base64Image) {
+  const response = await authedFetch(`${BASE_URL}/series/${seriesId}/cover/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_data: base64Image }),
+  });
+  if (!response.ok) throw new Error('Failed to set cover');
+  return response.json();
+}
+ 
+export async function revertSeriesCover(seriesId) {
+  const response = await authedFetch(`${BASE_URL}/series/${seriesId}/cover/`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Failed to revert cover');
+  return response.json();
+}
+ 

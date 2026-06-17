@@ -14,6 +14,7 @@ class Series(models.Model):
     title = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned')
     rating = models.IntegerField(null=True, blank=True)
+    custom_cover = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -25,6 +26,8 @@ class Series(models.Model):
 
     @property
     def cover(self):
+        if self.custom_cover:
+            return self.custom_cover
         first = self.chapters.order_by('chapter_order').first()
         return first.cover if first else None
 
@@ -47,7 +50,8 @@ class Manga(models.Model):
     title = models.CharField(max_length=255)
     file_name = models.CharField(max_length=255)
     total_pages = models.IntegerField(default=0)
-    cover = models.TextField(blank=True, null=True)
+    cover = models.TextField(blank=True, null=True)  # default: first page snapshot
+    custom_cover = models.TextField(blank=True, null=True)  # override
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='planned')
     rating = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,6 +62,10 @@ class Manga(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def display_cover(self):
+        return self.custom_cover if self.custom_cover else self.cover
 
 
 class Page(models.Model):

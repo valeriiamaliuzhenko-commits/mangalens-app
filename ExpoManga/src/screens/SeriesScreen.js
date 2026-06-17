@@ -13,6 +13,11 @@ import {
 } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
 import { getBulkJob, setBulkJob, subscribeBulkJobs } from '../services/store';
+import CoverOptionsModal from "../components/CoverOptionsModal";
+import {
+  setMangaCoverFromPage, setMangaCoverFromImage, revertMangaCover,
+  setSeriesCoverFromImage, revertSeriesCover,
+} from "../services/api";
 
 const STATUS_META = {
   planned:     { label: 'Planned',     color: Colors.textMuted },
@@ -21,6 +26,7 @@ const STATUS_META = {
   dropped:     { label: 'Dropped',     color: Colors.error },
 };
 const STATUS_ORDER = ['planned', 'in_progress', 'done', 'dropped'];
+const [coverModal, setCoverModal] = useState(null);
 
 // ─── Star components ──────────────────────────────────────────────────────────
 
@@ -128,6 +134,38 @@ function BulkTranslateBar({ mangaId, onDone }) {
     }
   };
 
+  const handleUsePageAsCover = async (pageIndex) => {
+    if (!coverModal) return;
+    await setMangaCoverFromPage(coverModal.id, pageIndex);
+    loadSeries();
+  };
+
+  const handleUploadCoverImage = async (base64) => {
+    if (!coverModal) return;
+    if (coverModal.type === 'series') {
+      await setSeriesCoverFromImage(coverModal.id, base64);
+    } else {
+      await setMangaCoverFromImage(coverModal.id, base64);
+    }
+    loadSeries();
+  };
+ 
+  const handleRevertCover = async () => {
+    if (!coverModal) return;
+    if (coverModal.type === 'series') {
+      await revertSeriesCover(coverModal.id);
+    } else {
+      await revertMangaCover(coverModal.id);
+    }
+    loadSeries();
+  };
+ 
+  const handleRenameChapter = async (newTitle) => {
+    if (!coverModal) return;
+    await updateManga(coverModal.id, { title: newTitle });
+    loadSeries();
+  };
+
   if (!job) return (
     <TouchableOpacity style={styles.bulkBtn} onPress={handleStart} disabled={loading} activeOpacity={0.8}>
       {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.bulkBtnText}>⚡ Translate All Pages</Text>}
@@ -213,13 +251,8 @@ export default function SeriesScreen({ route, navigation }) {
       const file = result.assets[0];
       setUploading(true);
       const data = await uploadManga(file.uri, file.name, file.mimeType, series.id, chapters.length);
-      setUploading(false);
-      loadSeries();
-      navigation.navigate("Viewer", {
-        manga_id: data.manga_id, totalPages: data.total_pages,
-        title: data.title, last_page: 0,
-        series_id: series.id,
-      });
+    setUploading(false);
+    loadSeries();
     } catch (err) {
       setUploading(false);
       Alert.alert("Upload Failed", err.message);
@@ -259,7 +292,12 @@ export default function SeriesScreen({ route, navigation }) {
         <View style={styles.chapterNum}>
           <Text style={[styles.chapterNumText, isRead && styles.textRead]}>{index + 1}</Text>
         </View>
-        <View style={[styles.chapterCover, isRead && styles.chapterCoverRead]}>
+        <TouchableOpacity
+          style={[styles.chapterCover, isRead && styles.chapterCoverRead]}
+          onLongPress={() => setCoverModal({ type: 'manga', id: item.id, title: item.title, totalPages: item.total_pages, hasCustomCover: !!item.custom_cover })}
+          delayLongPress={400}
+          activeOpacity={0.7}
+        >
           {item.cover ? (
             <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" />
           ) : (
@@ -270,7 +308,7 @@ export default function SeriesScreen({ route, navigation }) {
               <Text style={styles.readOverlayIcon}>✓</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
         <View style={styles.chapterBody}>
           <Text style={[styles.chapterTitle, isRead && styles.textRead]} numberOfLines={1}>{item.title}</Text>
           <Text style={[styles.chapterPages, isRead && styles.textRead]}>{item.total_pages} pages</Text>
@@ -299,13 +337,18 @@ export default function SeriesScreen({ route, navigation }) {
   const ListHeader = () => (
     <View style={styles.seriesHeader}>
       <View style={styles.seriesHero}>
-        <View style={styles.seriesCoverLarge}>
+        <TouchableOpacity
+          style={styles.seriesCoverLarge}
+          onLongPress={() => setCoverModal({ type: 'series', id: series.id, title: series.title, totalPages: 0, hasCustomCover: !!series.custom_cover })}
+          delayLongPress={400}
+          activeOpacity={0.7}
+        >
           {series.cover ? (
             <Image source={{ uri: `data:image/jpeg;base64,${series.cover}` }} style={styles.coverImage} resizeMode="cover" />
           ) : (
             <Text style={styles.seriesCoverPlaceholder}>📚</Text>
           )}
-        </View>
+        </TouchableOpacity>
         <View style={styles.seriesInfo}>
           <View style={styles.seriesTitleRow}>
             <TouchableOpacity onPress={() => setShowRename(true)} activeOpacity={0.7} style={{ flex: 1 }}>
@@ -381,6 +424,20 @@ export default function SeriesScreen({ route, navigation }) {
 
       <RenameModal visible={showRename} initialValue={series.title} onClose={() => setShowRename(false)} onSave={handleRename} />
       <StarPickerModal visible={showRating} title={series.title} currentRating={series.rating} onClose={() => setShowRating(false)} onRate={handleRate} />
+        <CoverOptionsModal
+        visible={!!coverModal}
+        onClose={() => setCoverModal(null)}
+        title={coverModal?.title || ''}
+        showRename={coverModal?.type === 'manga'}
+        initialTitle={coverModal?.title || ''}
+        onRename={handleRenameChapter}
+        showPageOption={coverModal?.type === 'manga'}
+        totalPages={coverModal?.totalPages || 0}
+        onUsePage={handleUsePageAsCover}
+        onUploadImage={handleUploadCoverImage}
+        hasCustomCover={coverModal?.hasCustomCover}
+        onRevert={handleRevertCover}
+      />
     </View>
   );
 }

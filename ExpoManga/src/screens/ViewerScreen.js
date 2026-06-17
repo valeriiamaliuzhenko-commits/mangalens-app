@@ -40,12 +40,17 @@ export default function ViewerScreen({ route, navigation }) {
     return () => panelHeight.removeListener(id);
   }, []);
 
-  const panResponder = useRef(
+  const dragStartHeight = useRef(PANEL_COLLAPSED_H);
+
+const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 5,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragStartHeight.current = panelHeightValue.current;
+      },
       onPanResponderMove: (_, gs) => {
-        const newH = Math.max(PANEL_COLLAPSED_H, Math.min(PANEL_EXPANDED_H, panelHeightValue.current - gs.dy));
+        const newH = Math.max(PANEL_COLLAPSED_H, Math.min(PANEL_EXPANDED_H, dragStartHeight.current - gs.dy));
         panelHeight.setValue(newH);
       },
       onPanResponderRelease: (_, gs) => {

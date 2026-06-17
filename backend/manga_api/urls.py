@@ -8,7 +8,7 @@ from .views import (
     DeleteMangaView,
     NoteListView, NoteCreateView, NoteDeleteView,
     SeriesListView, SeriesCreateView, SeriesDetailView, SeriesChapterNavView,
-    StatsView, DetailedStatsView,
+    StatsView, DetailedStatsView, SetMangaCoverView, SetSeriesCoverView
 )
 
 urlpatterns = [
@@ -44,4 +44,7 @@ urlpatterns = [
 
     path("stats/", StatsView.as_view()),
     path("stats/detailed/", DetailedStatsView.as_view()),
+
+    path("manga/<int:manga_id>/cover/", SetMangaCoverView.as_view()),
+    path("series/<int:series_id>/cover/", SetSeriesCoverView.as_view()),
 ]

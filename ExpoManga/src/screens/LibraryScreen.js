@@ -13,6 +13,11 @@ import {
 } from "../services/api";
 import { useFocusEffect } from "@react-navigation/native";
 import { logout, deleteAccount } from "../services/api";
+import CoverOptionsModal from "../components/CoverOptionsModal";
+import {
+  setMangaCoverFromPage, setMangaCoverFromImage, revertMangaCover,
+  setSeriesCoverFromImage, revertSeriesCover,
+} from "../services/api";
 
 const STATUS_META = {
   planned:     { label: 'Planned',     color: Colors.textMuted },
@@ -30,6 +35,8 @@ const SORT_OPTIONS = [
   { key: 'name', label: 'Name A–Z' },
   { key: 'rating', label: 'Rating' },
 ];
+const [coverModal, setCoverModal] = useState(null);
+// shape: { type: 'manga'|'series', id, title, totalPages, hasCustomCover }
 
 
 function StarDisplay({ rating, onPress, size = 14 }) {
@@ -236,7 +243,6 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
       const data = await uploadManga(file.uri, file.name, file.mimeType);
       setUploading(false);
       loadAll();
-      navigation.navigate("Viewer", { manga_id: data.manga_id, totalPages: data.total_pages, title: data.title, last_page: 0 });
     } catch (err) {
       setUploading(false);
       Alert.alert("Upload Failed", err.message);
@@ -317,6 +323,32 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     }
   };
 
+  const handleUsePageAsCover = async (pageIndex) => {
+    if (!coverModal) return;
+    await setMangaCoverFromPage(coverModal.id, pageIndex);
+    loadAll();
+  };
+ 
+  const handleUploadCoverImage = async (base64) => {
+    if (!coverModal) return;
+    if (coverModal.type === 'series') {
+      await setSeriesCoverFromImage(coverModal.id, base64);
+    } else {
+      await setMangaCoverFromImage(coverModal.id, base64);
+    }
+    loadAll();
+  };
+ 
+  const handleRevertCover = async () => {
+    if (!coverModal) return;
+    if (coverModal.type === 'series') {
+      await revertSeriesCover(coverModal.id);
+    } else {
+      await revertMangaCover(coverModal.id);
+    }
+    loadAll();
+  };
+
   const applySort = (items) => {
     const arr = [...items];
     if (sortBy === 'name') return arr.sort((a, b) => a.title.localeCompare(b.title));
@@ -343,10 +375,17 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     const progress = item.total_pages > 0 ? Math.round((item.total_read / item.total_pages) * 100) : 0;
     return (
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Series", { series: item })} activeOpacity={0.8}>
-        <View style={styles.cardCover}>
-          {item.cover ? <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" /> : <Text style={styles.cardIconText}>📚</Text>}
+        <TouchableOpacity
+          style={styles.cardCover}
+          onLongPress={() => setCoverModal({ type: 'series', id: item.id, title: item.title, totalPages: 0, hasCustomCover: !!item.custom_cover })}
+          delayLongPress={400}
+          activeOpacity={0.7}
+        >
+          {item.cover ? (
+            <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" />
+          ) : <Text style={styles.cardIconText}>📚</Text>}
           <View style={styles.chapterBadge}><Text style={styles.chapterBadgeText}>{item.total_chapters}</Text></View>
-        </View>
+        </TouchableOpacity>
         <View style={styles.cardBody}>
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
@@ -371,9 +410,16 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
     const meta = STATUS_META[item.status] || STATUS_META.planned;
     return (
       <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("Viewer", { manga_id: item.id, totalPages: item.total_pages, title: item.title, last_page: item.last_page })} activeOpacity={0.8}>
-        <View style={styles.cardCover}>
-          {item.cover ? <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" /> : <Text style={styles.cardIconText}>漫</Text>}
-        </View>
+        <TouchableOpacity
+          style={styles.cardCover}
+          onLongPress={() => setCoverModal({ type: 'manga', id: item.id, title: item.title, totalPages: item.total_pages, hasCustomCover: !!item.custom_cover })}
+          delayLongPress={400}
+          activeOpacity={0.7}
+        >
+          {item.cover ? (
+            <Image source={{ uri: `data:image/jpeg;base64,${item.cover}` }} style={styles.coverImage} resizeMode="cover" />
+          ) : <Text style={styles.cardIconText}>漫</Text>}
+        </TouchableOpacity>
         <View style={styles.cardBody}>
           <View style={styles.cardTitleRow}>
             <TouchableOpacity onPress={() => setRenameModal(item)} style={{ flex: 1 }}>
@@ -558,6 +604,18 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
           </View>
         </View>
       </Modal>
+      <CoverOptionsModal
+        visible={!!coverModal}
+        onClose={() => setCoverModal(null)}
+        title={coverModal?.title || ''}
+        showRename={false}
+        showPageOption={coverModal?.type === 'manga'}
+        totalPages={coverModal?.totalPages || 0}
+        onUsePage={handleUsePageAsCover}
+        onUploadImage={handleUploadCoverImage}
+        hasCustomCover={coverModal?.hasCustomCover}
+        onRevert={handleRevertCover}
+      />
     </View>
   );
 }

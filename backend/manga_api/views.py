@@ -54,13 +54,15 @@ def manga_to_dict(manga):
         "file_name": manga.file_name,
         "total_pages": manga.total_pages,
         "last_page": last_page,
-        "cover": manga.cover,
+        "cover": manga.display_cover,
         "status": manga.status,
         "rating": manga.rating,
         "chapter_order": manga.chapter_order,
         "series_id": manga.series_id,
         "is_fully_read": is_fully_read,
         "created_at": manga.created_at.isoformat(),
+        "cover": manga.display_cover,
+        "custom_cover": bool(manga.custom_cover),
     }
 
 
@@ -154,6 +156,7 @@ class SeriesListView(APIView):
                 "id": s.id, "title": s.title, "status": s.status, "rating": s.rating,
                 "total_chapters": len(chapters), "total_pages": total_pages,
                 "total_read": total_read, "cover": s.cover,
+                "custom_cover": bool(s.custom_cover),
                 "created_at": s.created_at.isoformat(),
             })
         return Response(data)
@@ -187,6 +190,7 @@ class SeriesDetailView(APIView):
         return Response({
             "id": s.id, "title": s.title, "status": s.status, "rating": s.rating,
             "total_chapters": len(chapters), "cover": s.cover,
+            "custom_cover": bool(s.custom_cover),
             "created_at": s.created_at.isoformat(), "chapters": chapters,
         })
 
@@ -274,6 +278,69 @@ class MangaUpdateView(APIView):
         manga.save()
         return Response(manga_to_dict(manga))
 
+class SetMangaCoverView(APIView):
+    """POST /api/manga/<id>/cover/
+    Body: { "page_number": N } to use an existing page as cover
+       OR { "image_data": "<base64>" } to use an uploaded image
+    """
+    def post(self, request, manga_id):
+        try:
+            manga = Manga.objects.get(id=manga_id, user=request.user)
+        except Manga.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+ 
+        if "page_number" in request.data:
+            page_num = int(request.data["page_number"])
+            try:
+                page = Page.objects.get(manga=manga, page_number=page_num)
+            except Page.DoesNotExist:
+                return Response({"error": "Page not found."}, status=status.HTTP_404_NOT_FOUND)
+            manga.custom_cover = page.image_data
+        elif "image_data" in request.data:
+            manga.custom_cover = request.data["image_data"]
+        else:
+            return Response({"error": "page_number or image_data required."}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        manga.save()
+        return Response({"id": manga.id, "cover": manga.display_cover})
+ 
+    def delete(self, request, manga_id):
+        """Revert to default (first-page) cover"""
+        try:
+            manga = Manga.objects.get(id=manga_id, user=request.user)
+        except Manga.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        manga.custom_cover = None
+        manga.save()
+        return Response({"id": manga.id, "cover": manga.display_cover})
+ 
+ 
+class SetSeriesCoverView(APIView):
+    """POST /api/series/<id>/cover/
+    Body: { "image_data": "<base64>" } — series has no own pages, gallery only
+    """
+    def post(self, request, series_id):
+        try:
+            series = Series.objects.get(id=series_id, user=request.user)
+        except Series.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+ 
+        if "image_data" not in request.data:
+            return Response({"error": "image_data required."}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        series.custom_cover = request.data["image_data"]
+        series.save()
+        return Response({"id": series.id, "cover": series.cover})
+ 
+    def delete(self, request, series_id):
+        """Revert to default (first chapter's cover)"""
+        try:
+            series = Series.objects.get(id=series_id, user=request.user)
+        except Series.DoesNotExist:
+            return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        series.custom_cover = None
+        series.save()
+        return Response({"id": series.id, "cover": series.cover})
 
 class UploadMangaView(APIView):
     parser_classes = [MultiPartParser]
