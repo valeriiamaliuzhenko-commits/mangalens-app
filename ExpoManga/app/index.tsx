@@ -5,7 +5,6 @@ import LibraryScreen from '../src/screens/LibraryScreen';
 import SeriesScreen from '../src/screens/SeriesScreen';
 import StatsScreen from '../src/screens/StatsScreen';
 import AuthScreen from '../src/screens/AuthScreen';
-import { getToken } from '../src/services/api';
 import { Colors } from '../src/theme';
 import { getToken, onSessionExpired } from '../src/services/api';
 

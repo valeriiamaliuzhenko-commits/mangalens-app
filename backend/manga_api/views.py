@@ -646,7 +646,7 @@ class StatsView(APIView):
             most_read = {
                 "id": top_standalone.manga.id, "title": top_standalone.manga.title,
                 "last_page": standalone_read, "total_pages": top_standalone.manga.total_pages,
-                "cover": top_standalone.manga.cover, "is_series": False,
+                "cover": top_standalone.manga.display_cover, "is_series": False,,
             }
 
         return Response({
