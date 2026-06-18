@@ -2,6 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mangalens-app-production.up.railway.app/api';
 
+let sessionExpiredCallback = null;
+ 
+export function onSessionExpired(callback) {
+  sessionExpiredCallback = callback;
+}
+
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
 export async function getToken() {
@@ -31,7 +37,12 @@ async function authedFetch(url, options = {}) {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Token ${token}` } : {}),
   };
-  return fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    await clearToken();
+    if (sessionExpiredCallback) sessionExpiredCallback();
+  }
+  return response;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

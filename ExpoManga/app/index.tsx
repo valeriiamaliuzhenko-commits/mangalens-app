@@ -7,6 +7,7 @@ import StatsScreen from '../src/screens/StatsScreen';
 import AuthScreen from '../src/screens/AuthScreen';
 import { getToken } from '../src/services/api';
 import { Colors } from '../src/theme';
+import { getToken, onSessionExpired } from '../src/services/api';
 
 export default function Index() {
   const router = useRouter();
@@ -14,11 +15,21 @@ export default function Index() {
   const [screenParams, setScreenParams] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState(null);
 
   const checkAuth = useCallback(async () => {
     const token = await getToken();
     setIsAuthenticated(!!token);
     setAuthChecked(true);
+  }, []);
+
+  useEffect(() => {
+    onSessionExpired(() => {
+      setIsAuthenticated(false);
+      setSessionMessage('Your session has ended. Please log in again.');
+      setCurrentScreen('Library');
+      setScreenParams(null);
+    });
   }, []);
 
   useEffect(() => {
@@ -96,7 +107,12 @@ export default function Index() {
       </View>
     );
   } else if (!isAuthenticated) {
-    content = <AuthScreen onAuthenticated={handleAuthenticated} />;
+    content = (
+      <AuthScreen
+        onAuthenticated={() => { setSessionMessage(null); handleAuthenticated(); }}
+        sessionMessage={sessionMessage}
+      />
+    );
   } else if (currentScreen === 'Stats') {
     content = <StatsScreen navigation={statsNavigation} />;
   } else if (currentScreen === 'Series' && screenParams) {

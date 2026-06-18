@@ -7,8 +7,8 @@ import {
 import { Colors, Typography, Spacing, Radius, Shadow } from '../theme';
 import { login, register } from '../services/api';
 
-export default function AuthScreen({ onAuthenticated }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+export default function AuthScreen({ onAuthenticated, sessionMessage }) {
+  const [mode, setMode] = useState('login'); 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,7 +59,9 @@ export default function AuthScreen({ onAuthenticated }) {
         <View style={styles.logoBlock}>
           <Text style={styles.logoIcon}>漫</Text>
           <Text style={styles.logoTitle}>MangaLens</Text>
-          <Text style={styles.logoSub}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
+          <Text style={styles.logoSub}>
+            {sessionMessage ? sessionMessage : (mode === 'login' ? 'Welcome back' : 'Create your account')}
+          </Text>
         </View>
 
         <View style={styles.form}>
