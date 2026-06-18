@@ -393,7 +393,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
   };
 
   const renderStandaloneCard = ({ item }) => {
-    const progress = item.total_pages > 0 ? Math.round(((item.last_page + 1) / item.total_pages) * 100) : 0;
+    const progress = item.total_pages > 0 ? Math.round((item.pages_read / item.total_pages) * 100) : 0;
     const meta = STATUS_META[item.status] || STATUS_META.planned;
     return (
       <View style={styles.card}>
@@ -426,7 +426,7 @@ export default function LibraryScreen({ navigation, onSignedOut }) {
           <Text style={styles.cardMeta}>{item.total_pages} pages</Text>
           <View style={styles.progressRow}>
             <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress}%` }]} /></View>
-            <Text style={styles.progressText}>{item.last_page + 1}/{item.total_pages}</Text>
+            <Text style={styles.progressText}>{item.pages_read}/{item.total_pages}</Text>
           </View>
         </TouchableOpacity>
 

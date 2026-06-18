@@ -47,22 +47,24 @@ def pil_to_base64(img: Image.Image) -> str:
 def manga_to_dict(manga):
     progress = getattr(manga, 'progress', None)
     last_page = progress.last_page if progress else 0
-    is_fully_read = manga.total_pages > 0 and last_page >= manga.total_pages - 1
+    has_history = manga.history.exists()
+    pages_read = (last_page + 1) if has_history else 0
+    is_fully_read = manga.total_pages > 0 and last_page >= manga.total_pages - 1 and has_history
     return {
         "id": manga.id,
         "title": manga.title,
         "file_name": manga.file_name,
         "total_pages": manga.total_pages,
         "last_page": last_page,
+        "pages_read": pages_read,
         "cover": manga.display_cover,
+        "custom_cover": bool(manga.custom_cover),
         "status": manga.status,
         "rating": manga.rating,
         "chapter_order": manga.chapter_order,
         "series_id": manga.series_id,
         "is_fully_read": is_fully_read,
         "created_at": manga.created_at.isoformat(),
-        "cover": manga.display_cover,
-        "custom_cover": bool(manga.custom_cover),
     }
 
 
@@ -148,7 +150,7 @@ class SeriesListView(APIView):
         for s in series_qs:
             chapters = list(s.chapters.all())
             total_read = sum(
-                (getattr(c, 'progress', None).last_page + 1 if getattr(c, 'progress', None) else 0)
+                (getattr(c, 'progress', None).last_page + 1 if getattr(c, 'progress', None) and c.history.exists() else 0)
                 for c in chapters
             )
             total_pages = sum(c.total_pages for c in chapters)
@@ -606,9 +608,10 @@ class NoteDeleteView(APIView):
 class StatsView(APIView):
     def get(self, request):
         u = request.user
-        pages_read = ReadingProgress.objects.filter(manga__user=u).aggregate(
-            total=Sum(F('last_page') + 1)
-        )['total'] or 0
+        pages_read = sum(
+            (p.last_page + 1) for p in ReadingProgress.objects.filter(manga__user=u)
+            if p.manga.history.exists()
+        )
 
         translated = Page.objects.filter(
             manga__user=u, translation__isnull=False
@@ -622,7 +625,7 @@ class StatsView(APIView):
         top_series_read = 0
         for s in Series.objects.filter(user=u).prefetch_related('chapters__progress').all():
             total_read = sum(
-                (getattr(c, 'progress', None).last_page + 1 if getattr(c, 'progress', None) else 0)
+                (getattr(c, 'progress', None).last_page + 1 if getattr(c, 'progress', None) and c.history.exists() else 0)
                 for c in s.chapters.all()
             )
             if total_read > top_series_read:
@@ -718,9 +721,10 @@ class DetailedStatsView(APIView):
             translation_by_day.append({"date": current.isoformat(), "pages": trans_map.get(current.isoformat(), 0)})
             current += timedelta(days=1)
 
-        pages_read_total = ReadingProgress.objects.filter(manga__user=u).aggregate(
-            total=Sum(F('last_page') + 1)
-        )['total'] or 0
+        pages_read_total = sum(
+            (p.last_page + 1) for p in ReadingProgress.objects.filter(manga__user=u)
+            if p.manga.history.exists()
+        )
 
         manga_count = Manga.objects.filter(user=u, series__isnull=True).count() + Series.objects.filter(user=u).count()
 

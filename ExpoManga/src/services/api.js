@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://qbz1dtxk-8000.euw.devtunnels.ms/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mangalens-app-production.up.railway.app/api';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 

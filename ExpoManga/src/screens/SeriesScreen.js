@@ -277,7 +277,7 @@ export default function SeriesScreen({ route, navigation }) {
   };
 
   const renderChapter = ({ item, index }) => {
-    const progress = item.total_pages > 0 ? Math.round(((item.last_page + 1) / item.total_pages) * 100) : 0;
+    const progress = item.total_pages > 0 ? Math.round((item.pages_read / item.total_pages) * 100) : 0;
     const isRead = item.is_fully_read;
 
     return (
@@ -320,7 +320,7 @@ export default function SeriesScreen({ route, navigation }) {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progress}%` }, isRead && styles.progressFillRead]} />
             </View>
-            <Text style={[styles.progressText, isRead && styles.textRead]}>{item.last_page + 1}/{item.total_pages}</Text>
+            <Text style={[styles.progressText, isRead && styles.textRead]}>{item.pages_read}/{item.total_pages}</Text>
           </View>
         </TouchableOpacity>
 
