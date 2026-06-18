@@ -33,7 +33,7 @@ const RANGES = [
   { key: 'all',       label: 'All Time' },
 ];
 
-// ─── Pie Chart using stacked colored arcs ────────────────────────────────────
+// Pie Chart
 
 function PieChart({ entries, size = 150 }) {
   const total = entries.reduce((s, e) => s + e.value, 0);
@@ -67,14 +67,26 @@ function PieChart({ entries, size = 150 }) {
     return `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${r} ${r} 0 ${large} 0 ${ix2} ${iy2} Z`;
   };
 
+  const fullRingArc = (color) => {
+    const midAngle = -Math.PI / 2 + Math.PI;
+    return (
+      <>
+        <Path d={arc(-Math.PI / 2, midAngle)} fill={color} />
+        <Path d={arc(midAngle, -Math.PI / 2 + 2 * Math.PI)} fill={color} />
+      </>
+    );
+  };
+
   return (
     <View style={{ alignItems: 'center', gap: Spacing.md }}>
       <View style={{ width: size, height: size }}>
         <Svg width={size} height={size}>
           <G>
-            {slices.map((s, i) => (
-              <Path key={i} d={arc(s.start, s.end)} fill={s.color} />
-            ))}
+            {slices.length === 1
+              ? fullRingArc(slices[0].color)
+              : slices.map((s, i) => (
+                  <Path key={i} d={arc(s.start, s.end)} fill={s.color} />
+                ))}
           </G>
         </Svg>
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -95,7 +107,7 @@ function PieChart({ entries, size = 150 }) {
     </View>
   );
 }
-// ─── Bar Chart ────────────────────────────────────────────────────────────────
+// Bar Chart 
 
 function BarChart({ data, color }) {
   if (!data || data.length === 0) return null;
@@ -130,7 +142,7 @@ function BarChart({ data, color }) {
   );
 }
 
-// ─── Translation Ratio ───────────────────────────────────────────────────────
+// Translation Ratio
 
 function TranslationRatio({ total, translated }) {
   const pct = total > 0 ? Math.round((translated / total) * 100) : 0;
@@ -160,7 +172,7 @@ function TranslationRatio({ total, translated }) {
   );
 }
 
-// ─── Milestones ──────────────────────────────────────────────────────────────
+//Milestones
 
 function MilestoneGrid({ milestones }) {
   return (
@@ -198,7 +210,7 @@ function RangeSelector({ range, onSelect }) {
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// Main 
 
 export default function StatsScreen({ navigation }) {
   const [data, setData] = useState(null);
